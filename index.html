@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduQuiz Pro | PDF Quiz Generator</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+<div class="nav-container">
+<div class="logo">
+<i class="fa-solid fa-graduation-cap text-gradient"></i>
+<span class="logo-text">EduQuiz <span class="weight-light">Pro</span></span>
+</div>
+<div class="nav-actions">
+<button id="theme-toggle" class="btn-icon" title="Toggle Theme">
+<i class="fa-solid fa-moon"></i>
+</button>
+</div>
+</div>
+</nav>
+<main class="main-container">
+<section id="upload-screen" class="view-panel active">
+<div class="hero-section">
+<h1 class="hero-title">Transform Your PDFs into Interactive Quizzes</h1>
+<p class="hero-subtitle">Upload multiple-choice PDFs (English or Arabic) with highlighted answers or an answer key. Our AI engine extracts data instantly for customized exam simulations.</p>
+</div>
+<div class="upload-card glassmorphism">
+<div class="drop-zone" id="drop-zone">
+<i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+<h3>Drag & Drop your MCQ PDF here</h3>
+<p>or click to browse files from your device</p>
+<span class="file-spec">Supports standard & scanned PDFs up to 50MB</span>
+<input type="file" id="pdf-input" accept=".pdf" hidden>
+</div>
+<div class="settings-grid">
+<div class="setting-item">
+<label for="quiz-mode"><i class="fa-solid fa-sliders"></i> Mode</label>
+<select id="quiz-mode">
+<option value="exam">Exam Mode (With Timer)</option>
+<option value="practice">Practice Mode (Instant Feedback)</option>
+</select>
+</div>
+<div class="setting-item">
+<label for="randomize-questions"><i class="fa-solid fa-shuffle"></i> Question Order</label>
+<select id="randomize-questions">
+<option value="yes">Randomized Shuffle</option>
+<option value="no">Original PDF Sequence</option>
+</select>
+</div>
+<div class="setting-item">
+<label for="smart-randomize"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart Answer Position Randomizer</label>
+<select id="smart-randomize">
+<option value="no">OFF: Standard Shuffling</option>
+<option value="yes">ON: Force Reposition Correct Answer</option>
+</select>
+</div>
+</div>
+</div>
+</section>
+<section id="loading-screen" class="view-panel">
+<div class="loading-container glassmorphism">
+<div id="loading-spinner-wrapper">
+<div class="spinner"></div>
+<h2 id="loading-status">Analyzing PDF Document...</h2>
+<p id="loading-substatus">Extracting text tracks and processing color layers.</p>
+<div class="progress-bar-container">
+<div class="progress-bar-fill" id="loading-progress" style="width: 0%"></div>
+</div>
+</div>
+<div id="validation-summary-block" class="hidden" style="margin-top: 1rem; text-align: left;">
+<h2 style="text-align: center; margin-bottom: 1rem;" class="text-gradient"><i class="fa-solid fa-circle-check"></i> Processing Completed</h2>
+<p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem;">The complete document structure has been analyzed and indexed.</p>
+<div style="background: rgba(0,0,0,0.02); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+<span><i class="fa-solid fa-file-pdf" style="color: var(--primary);"></i> Total Pages Scanned:</span>
+<strong id="val-pages-scanned">0</strong>
+</div>
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+<span><i class="fa-solid fa-list-check" style="color: var(--success);"></i> Total Questions Found:</span>
+<strong id="val-questions-found">0</strong>
+</div>
+<div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+<span><i class="fa-solid fa-check" style="color: var(--success);"></i> Successfully Processed:</span>
+<strong id="val-questions-processed">0</strong>
+</div>
+<div style="display: flex; justify-content: space-between; color: var(--danger);">
+<span><i class="fa-solid fa-triangle-exclamation"></i> Parsing Anomalies/Failures:</span>
+<strong id="val-questions-failed">0</strong>
+</div>
+</div>
+<button id="start-quiz-confirmed-btn" class="btn btn-primary" style="width: 100%; justify-content: center;">
+Confirm & Launch Quiz Simulator <i class="fa-solid fa-rocket"></i>
+</button>
+</div>
+</div>
+</section>
+<section id="quiz-screen" class="view-panel">
+<div class="quiz-layout">
+<div class="quiz-main">
+<div class="quiz-header glassmorphism">
+<div class="quiz-meta">
+<span class="badge" id="badge-mode">Exam Mode</span>
+<span class="quiz-timer" id="quiz-timer"><i class="fa-regular fa-clock"></i> 00:00:00</span>
+</div>
+<div class="quiz-progress-wrapper">
+<div class="progress-text">
+<span>Progress Tracking</span>
+<span id="progress-percentage">0% Completed</span>
+</div>
+<div class="progress-bar-container">
+<div class="progress-bar-fill" id="quiz-progress" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<div class="question-card glassmorphism" id="question-card">
+<div class="question-title-bar">
+<h2 id="question-text">Loading question text...</h2>
+<button id="bookmark-btn" class="btn-icon-flag" title="Bookmark Question">
+<i class="fa-regular fa-bookmark"></i>
+</button>
+</div>
+<div class="options-container" id="options-container"></div>
+<div class="feedback-box hidden" id="instant-feedback"></div>
+</div>
+<div class="quiz-actions">
+<button id="prev-btn" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Previous</button>
+<button id="skip-btn" class="btn btn-tertiary">Skip Question</button>
+<button id="next-btn" class="btn btn-primary">Next <i class="fa-solid fa-arrow-right"></i></button>
+<button id="submit-quiz-btn" class="btn btn-danger hidden">Submit Examination</button>
+</div>
+</div>
+<aside class="quiz-sidebar glassmorphism">
+<div class="sidebar-section">
+<h3>Search & Locate</h3>
+<div class="search-box">
+<i class="fa-solid fa-magnifying-glass"></i>
+<input type="text" id="search-questions" placeholder="Search keywords...">
+</div>
+</div>
+<div class="sidebar-section flex-grow">
+<div class="sidebar-header">
+<h3>Question Navigator</h3>
+<span id="navigator-count">0/0</span>
+</div>
+<div class="navigator-grid" id="navigator-grid"></div>
+</div>
+<div class="sidebar-footer">
+<div class="legend">
+<span class="legend-item"><span class="dot answered"></span>Answered</span>
+<span class="legend-item"><span class="dot current"></span>Current</span>
+<span class="legend-item"><span class="dot bookmarked"></span>Bookmarked</span>
+</div>
+</div>
+</aside>
+</div>
+</section>
+<section id="results-screen" class="view-panel">
+<div class="results-container">
+<div class="results-summary glassmorphism">
+<div class="score-circle-wrapper">
+<div class="score-circle">
+<span id="results-score-percent">0%</span>
+<span class="score-label" id="results-status">Passed / Failed</span>
+</div>
+</div>
+<div class="summary-details">
+<h2 class="section-title">Performance Summary</h2>
+<div class="metrics-grid">
+<div class="metric-card">
+<span class="metric-label">Total Questions</span>
+<span class="metric-value" id="meta-total">0</span>
+</div>
+<div class="metric-card success">
+<span class="metric-label">Correct Answers</span>
+<span class="metric-value" id="meta-correct">0</span>
+</div>
+<div class="metric-card danger">
+<span class="metric-label">Incorrect Answers</span>
+<span class="metric-value" id="meta-incorrect">0</span>
+</div>
+<div class="metric-card warning">
+<span class="metric-label">Total Time Spent</span>
+<span class="metric-value" id="meta-time">00:00</span>
+</div>
+</div>
+<div class="export-actions">
+<button id="export-pdf" class="btn btn-secondary"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+<button id="export-excel" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Export Excel</button>
+<button id="retry-btn" class="btn btn-primary"><i class="fa-solid fa-arrows-rotate"></i> Retry Quiz</button>
+<button id="retry-incorrect-btn" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Retry Incorrect Only</button>
+<button id="restart-btn" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up"></i> New Upload</button>
+</div>
+</div>
+</div>
+<div class="review-section glassmorphism">
+<div class="review-header">
+<h2>Detailed Question Evaluation</h2>
+<div class="filter-tabs">
+<button class="tab-btn active" data-filter="all">All Questions</button>
+<button class="tab-btn" data-filter="correct">Correct</button>
+<button class="tab-btn" data-filter="incorrect">Incorrect</button>
+<button class="tab-btn" data-filter="unanswered">Unanswered</button>
+</div>
+</div>
+<div class="review-list" id="review-list"></div>
+</div>
+</div>
+</section>
+</main>
+<script src="script.js"></script>
+</body>
+</html>
